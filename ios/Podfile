@@ -60,6 +60,25 @@ target 'CyMusic' do
       :mac_catalyst_enabled => false
     )
 
+    installer.pods_project.targets.each do |target|
+      target.build_configurations.each do |config|
+        # 强制所有 Pods 使用 C++17 标准，以兼容 Xcode 16
+        config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++17'
+        
+        # 针对 react-native-reanimated 缺失版本字符串的补丁
+        if target.name == 'RNReanimated'
+          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= ['$(inherited)']
+          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'REANIMATED_VERSION_STRING="3.6.2"'
+        end
+
+        # 针对 MMKVCore 的 getVector 错误，尝试添加 C++ 标志
+        if target.name == 'MMKVCore'
+          config.build_settings['OTHER_CPLUSPLUSFLAGS'] ||= ['$(inherited)']
+          config.build_settings['OTHER_CPLUSPLUSFLAGS'] << ' -std=c++17 -Wno-c++17-extensions'
+        end
+      end
+    end
+
     # This is necessary for Xcode 14, because it signs resource bundles by default
     # when building for devices.
     installer.target_installation_results.pod_target_installation_results
