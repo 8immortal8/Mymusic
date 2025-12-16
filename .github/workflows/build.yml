@@ -28,7 +28,10 @@ jobs:
           npm install
           npm install expo-build-properties --save-dev
 
-      # --- 重新引入各种 Patch ---
+      - name: Expo Prebuild
+        run: npx expo prebuild --platform ios --clean
+
+      # --- 重新引入各种 Patch (移到 Prebuild 之后) ---
       - name: Fix Hardcoded Paths in Xcode Project (CI Only)
         run: |
           sed -i '' 's|/Users/gyc/Code/Cymusic/ios/||g' ios/CyMusic.xcodeproj/project.pbxproj
@@ -44,10 +47,7 @@ jobs:
           # 动态插入 Pods 的 C++17 强制设置和 RNReanimated 宏定义
           # 找到 post_install 块，并在 react_native_post_install 之后插入
           sed -i '' '/react_native_post_install(/a\
-          installer.pods_project.targets.each do |target|\n            target.build_configurations.each do |config|\n              config.build_settings["CLANG_CXX_LANGUAGE_STANDARD"] = "c++17"\n              if target.name == 'RNReanimated'\n                config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= ['$(inherited)']\n                config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'REANIMATED_VERSION_STRING="3.6.2"'\n              end\n            end\n          end\n          ' ios/Podfile
-
-      - name: Expo Prebuild
-        run: npx expo prebuild --platform ios --clean
+          installer.pods_project.targets.each do |target|\n            target.build_configurations.each do |config|\n              config.build_settings["CLANG_CXX_LANGUAGE_STANDARD"] = "c++17"\n              if target.name == '"'RNReanimated'"'\n                config.build_settings["OTHER_CPLUSPLUSFLAGS"] ||= ["$(inherited)"]\n                config.build_settings["OTHER_CPLUSPLUSFLAGS"] << " -DREANIMATED_VERSION_STRING=@\"3.6.2\""\n              end\n            end\n          end\n          ' ios/Podfile
 
       - name: Install Pods
         run: |
