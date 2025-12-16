@@ -1,0 +1,80 @@
+name: Build Release IPA for TrollStore
+
+on:
+  workflow_dispatch: # 手动触发
+
+jobs:
+  build:
+    name: Build iOS IPA
+    # 关键修改：强制使用 macos-13 (对应 Xcode 15.2)，避免 Xcode 16 导致的 C++ 编译错误
+    runs-on: macos-13
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'npm'
+
+      - name: Setup CocoaPods
+        uses: maxim-lobanov/setup-cocoapods@v1
+        with:
+          version: 1.14.3
+
+      - name: Install Dependencies
+        run: |
+          npm install
+          # 强制安装构建属性插件
+          npm install expo-build-properties --save-dev
+
+      - name: Expo Prebuild
+        # 增加 --clean 参数确保没有缓存干扰
+        run: npx expo prebuild --platform ios --no-interactive --clean
+
+      - name: Install Pods
+        run: |
+          cd ios
+          # 关键：修复某些库的最低部署版本警告
+          sed -i '' "s/config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '9.0'/config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.4'/g" Podfile
+          pod install --repo-update
+          cd ..
+
+      - name: Build Unsigned Release Archive
+        run: |
+          cd ios
+          
+          # 自动获取 workspace 和 scheme
+          WORKSPACE=$(ls | grep .xcworkspace | head -n 1)
+          SCHEME=$(xcodebuild -list -json | python3 -c "import sys, json; print(json.load(sys.stdin)['workspace']['schemes'][0])")
+          
+          echo "Building Workspace: $WORKSPACE"
+          echo "Building Scheme: $SCHEME"
+
+          # 使用 Xcode 15 进行构建
+          xcodebuild archive \
+            -workspace "$WORKSPACE" \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -archivePath ./build/App.xcarchive \
+            -sdk iphoneos \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            COMPILER_INDEX_STORE_ENABLE=NO \
+            IPHONEOS_DEPLOYMENT_TARGET=13.4
+
+      - name: Export IPA
+        run: |
+          cd ios
+          mkdir -p Payload
+          mv ./build/App.xcarchive/Products/Applications/*.app Payload/
+          zip -r -y Cymusic_Release.ipa Payload
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: Cymusic_Release_IPA
+          path: ios/Cymusic_Release.ipa
