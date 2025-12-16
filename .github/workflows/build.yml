@@ -78,7 +78,8 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
             COMPILER_INDEX_STORE_ENABLE=NO \
-            IPHONEOS_DEPLOYMENT_TARGET=13.4
+            IPHONEOS_DEPLOYMENT_TARGET=13.4 \
+            OTHER_CPLUSPLUSFLAGS="-std=c++20 -Wno-deprecated-declarations" # 尝试 C++20
 
       - name: Export IPA
         run: |
