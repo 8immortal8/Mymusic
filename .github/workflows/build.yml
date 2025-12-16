@@ -43,6 +43,7 @@ jobs:
       - name: Install Dependencies
         run: |
           npm install
+          npm install react-native-mmkv@latest
           npm install expo-build-properties --save-dev
 
       - name: Expo Prebuild
@@ -79,7 +80,7 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             COMPILER_INDEX_STORE_ENABLE=NO \
             IPHONEOS_DEPLOYMENT_TARGET=13.4 \
-            OTHER_CPLUSPLUSFLAGS="-std=c++20 -Wno-deprecated-declarations" # 尝试 C++20
+            OTHER_CPLUSPLUSFLAGS="-std=c++17 -Wno-deprecated-declarations"
 
       - name: Export IPA
         run: |

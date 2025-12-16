@@ -60,21 +60,15 @@ target 'CyMusic' do
       :mac_catalyst_enabled => false
     )
 
+    # Force C++17 standard to compatibility with Xcode 16
     installer.pods_project.targets.each do |target|
       target.build_configurations.each do |config|
-        # 尝试使用 C++20 标准，顺应 Xcode 16
-        config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++20'
+        config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++17'
         
-        # 针对 react-native-reanimated 缺失版本字符串的补丁
+        # Patch for react-native-reanimated missing version string
         if target.name == 'RNReanimated'
           config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= ['$(inherited)']
           config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'REANIMATED_VERSION_STRING="3.6.2"'
-        end
-
-        # 针对 MMKVCore，尝试 C++20
-        if target.name == 'MMKVCore'
-          config.build_settings['OTHER_CPLUSPLUSFLAGS'] ||= ['$(inherited)']
-          config.build_settings['OTHER_CPLUSPLUSFLAGS'] << ' -std=c++20'
         end
       end
     end
