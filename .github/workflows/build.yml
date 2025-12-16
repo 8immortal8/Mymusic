@@ -59,12 +59,15 @@ jobs:
       - name: Build Unsigned Release Archive
         run: |
           cd ios
-          WORKSPACE=$(ls | grep .xcworkspace | head -n 1)
-          SCHEME=$(xcodebuild -list -json | python3 -c "import sys, json; print(json.load(sys.stdin)['workspace']['schemes'][0])")
+          
+          # 直接指定 Workspace 和 Scheme，避免脚本解析错误
+          WORKSPACE="CyMusic.xcworkspace"
+          SCHEME="CyMusic"
           
           echo "Building Workspace: $WORKSPACE"
           echo "Building Scheme: $SCHEME"
 
+          # 使用 Xcode 15 进行构建
           xcodebuild archive \
             -workspace "$WORKSPACE" \
             -scheme "$SCHEME" \
