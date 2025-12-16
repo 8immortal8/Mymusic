@@ -47,7 +47,7 @@ jobs:
           installer.pods_project.targets.each do |target|\n            target.build_configurations.each do |config|\n              config.build_settings["CLANG_CXX_LANGUAGE_STANDARD"] = "c++17"\n              if target.name == 'RNReanimated'\n                config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= ['$(inherited)']\n                config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'REANIMATED_VERSION_STRING="3.6.2"'\n              end\n            end\n          end\n          ' ios/Podfile
 
       - name: Expo Prebuild
-        run: npx expo prebuild --platform ios --no-interactive --clean
+        run: npx expo prebuild --platform ios --clean
 
       - name: Install Pods
         run: |
