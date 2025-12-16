@@ -6,8 +6,7 @@ on:
 jobs:
   build:
     name: Build iOS IPA
-    # 关键修改：强制使用 macos-13 (对应 Xcode 15.2)，避免 Xcode 16 导致的 C++ 编译错误
-    runs-on: macos-13
+    runs-on: macos-latest # 改回 macos-latest
 
     steps:
       - name: Checkout Repository
@@ -27,17 +26,32 @@ jobs:
       - name: Install Dependencies
         run: |
           npm install
-          # 强制安装构建属性插件
           npm install expo-build-properties --save-dev
 
+      # --- 重新引入各种 Patch ---
+      - name: Fix Hardcoded Paths in Xcode Project (CI Only)
+        run: |
+          sed -i '' 's|/Users/gyc/Code/Cymusic/ios/||g' ios/CyMusic.xcodeproj/project.pbxproj
+
+      - name: Fix glog.podspec (CI Only)
+        run: |
+          # glog.podspec 脚本在 CI 环境下解析 Xcode 版本可能失败，这里强制指定版本为 15
+          sed -i '' 's/major_version *= *match[1].to_i/major_version = 15/' node_modules/react-native/third-party-podspecs/glog.podspec
+          sed -i '' 's/minor_version *= *match[2].to_i/minor_version = 2/' node_modules/react-native/third-party-podspecs/glog.podspec
+      
+      - name: Fix Podfile C++ Standard and Reanimated (CI Only)
+        run: |
+          # 动态插入 Pods 的 C++17 强制设置和 RNReanimated 宏定义
+          # 找到 post_install 块，并在 react_native_post_install 之后插入
+          sed -i '' '/react_native_post_install(/a\
+          installer.pods_project.targets.each do |target|\n            target.build_configurations.each do |config|\n              config.build_settings["CLANG_CXX_LANGUAGE_STANDARD"] = "c++17"\n              if target.name == 'RNReanimated'\n                config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= ['$(inherited)']\n                config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'REANIMATED_VERSION_STRING="3.6.2"'\n              end\n            end\n          end\n          ' ios/Podfile
+
       - name: Expo Prebuild
-        # 增加 --clean 参数确保没有缓存干扰
         run: npx expo prebuild --platform ios --no-interactive --clean
 
       - name: Install Pods
         run: |
           cd ios
-          # 关键：修复某些库的最低部署版本警告
           sed -i '' "s/config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '9.0'/config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.4'/g" Podfile
           pod install --repo-update
           cd ..
@@ -45,15 +59,12 @@ jobs:
       - name: Build Unsigned Release Archive
         run: |
           cd ios
-          
-          # 自动获取 workspace 和 scheme
           WORKSPACE=$(ls | grep .xcworkspace | head -n 1)
           SCHEME=$(xcodebuild -list -json | python3 -c "import sys, json; print(json.load(sys.stdin)['workspace']['schemes'][0])")
           
           echo "Building Workspace: $WORKSPACE"
           echo "Building Scheme: $SCHEME"
 
-          # 使用 Xcode 15 进行构建
           xcodebuild archive \
             -workspace "$WORKSPACE" \
             -scheme "$SCHEME" \
@@ -64,7 +75,8 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
             COMPILER_INDEX_STORE_ENABLE=NO \
-            IPHONEOS_DEPLOYMENT_TARGET=13.4
+            IPHONEOS_DEPLOYMENT_TARGET=13.4 \
+            OTHER_CPLUSPLUSFLAGS="-std=c++17 -Wno-deprecated-declarations" # 再次强调 C++ flags
 
       - name: Export IPA
         run: |
